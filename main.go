@@ -1,6 +1,13 @@
 package main 
 
+import (
+	"time"
+	"github.com/pokedex/internal/pokecache"
+)
+
 func main() {
-    cfg := &config{}
-    startRepl(cfg)
+  cfg := &config{
+		Cache: pokecache.NewCache(5 * time.Second)
+	}
+  startRepl(cfg)
 }

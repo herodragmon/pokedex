@@ -36,6 +36,7 @@ func cleanInput(text string) []string {
 type config struct {
     Next     *string
     Previous *string
+		Cache    pokecache.Cache
 }
 
 
