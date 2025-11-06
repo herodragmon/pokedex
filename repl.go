@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"github.com/herodragmon/pokedex/internal/pokecache"
 )
 
 func startRepl(cfg *config) {

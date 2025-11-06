@@ -5,6 +5,7 @@ import (
 	"os"
 	"net/http"
 	"encoding/json"
+	"io"
 )
 
 type locationAreaList struct {
@@ -100,6 +101,29 @@ func commandMapB(cfg *config, _ []string) error {
 	}
 
 	url := *cfg.Previous
+
+	cachedData, found := cfg.Cache.Get(url)
+
+	if found {
+		fmt.Println("Loading location areas from cache...")
+
+		var lst locationAreaList
+		if err := json.Unmarshal(cachedData, &lst); err != nil {
+			return fmt.Errorf("failed to unmarshal cached data: %w", err)
+		}
+
+		cfg.Next = lst.Next
+		cfg.Previous = lst.Previous
+
+		for _, l := range lst.Results {
+			fmt.Println(l.Name)
+		}
+		
+		return nil
+	}
+
+	fmt.Println("Loading location areas from API...")
+
 	res, err := http.Get(url)
 	if err != nil {
 		return err
@@ -107,13 +131,19 @@ func commandMapB(cfg *config, _ []string) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("Unexpected status: %s", res.Status)
+		return fmt.Errorf("unexpected status: %s", res.Status)
 	}
 
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	cfg.Cache.Add(url, bodyBytes)
+
 	var lst locationAreaList
-	decoder := json.NewDecoder(res.Body)
-	if err = decoder.Decode(&lst); err != nil {
-		return err
+	if err = json.Unmarshal(bodyBytes, &lst); err != nil {
+		return fmt.Errorf("failed to unmarshal API data: %w", err)
 	}
 
 	cfg.Next = lst.Next
@@ -122,6 +152,6 @@ func commandMapB(cfg *config, _ []string) error {
 	for _, l := range lst.Results {
 		fmt.Println(l.Name)
 	}
-	return nil
 
+	return nil
 }
