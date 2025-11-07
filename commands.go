@@ -155,3 +155,70 @@ func commandMapB(cfg *config, _ []string) error {
 
 	return nil
 }
+
+type locationAreaDetail struct {
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string `json:"name"`
+		} `json:"pokemon"`
+	} `json:"pokemon_encounters"`
+}
+
+
+func commandExplore(cfg *config, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("you must provide a location area name (e.g., 'explore eterna-forest')")
+	}
+
+	locationName := args[0]
+	url := "https://pokeapi.co/api/v2/location-area/" + locationName
+
+	fmt.Printf("Exploring %s...\n", locationName)
+
+	cachedData, found := cfg.Cache.Get(url)
+	var locationDetail locationAreaDetail
+	
+	if found {
+		fmt.Println("Loading from cache...")
+		if err := json.Unmarshal(cachedData, &locationDetail); err != nil {
+			return fmt.Errorf("failed to unmarshal cached data: %w", err)
+		}
+	} else {
+		fmt.Println("Loading from API...")
+		res, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("location area '%s' not found", locationName)
+		}
+		if res.StatusCode != http.StatusOK {
+			return fmt.Errorf("unexpected status: %s", res.Status)
+		}
+
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
+		cfg.Cache.Add(url, bodyBytes)
+
+		if err = json.Unmarshal(bodyBytes, &locationDetail); err != nil {
+			return fmt.Errorf("failed to unmarshal API data: %w", err)
+		}
+	}
+
+	fmt.Println("Found Pokémon:")
+	if len(locationDetail.PokemonEncounters) == 0 {
+		fmt.Println("  (No Pokémon found in this area)")
+		return nil
+	}
+
+	for _, encounter := range locationDetail.PokemonEncounters {
+		fmt.Printf(" - %s\n", encounter.Pokemon.Name)
+	}
+
+	return nil
+}
