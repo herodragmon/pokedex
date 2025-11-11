@@ -6,8 +6,9 @@ import (
 )
 
 func main() {
-  cfg := &config{
-		Cache: pokecache.NewCache(5 * time.Second),
+	cfg := &config{
+		Cache:   pokecache.NewCache(5 * time.Minute),
+		Pokedex: make(map[string]Pokemon),
 	}
-  startRepl(cfg)
+	startRepl(cfg)
 }
